@@ -5,22 +5,6 @@ import numpy as np
 import argparse
 
 
-def main(args):
-    '''
-    Loads the scores from the congruent and incongruent text files.
-    Cleans the scores data, as necessary.
-    '''
-    congruent = clean_data(args.congruent, args.meteor)
-    incongruent = clean_data(args.incongruent, args.meteor)
-    deltas, mean_awareness = calculate_awareness(congruent,
-                                                 incongruent,
-                                                 args.logprob)
-    stat, p = significance_test(congruent, incongruent)
-    print('Mean awareness: {:.5f}, T={}, p={:.3f}'.format(mean_awareness,
-                                                          stat, p))
-    plot_histograms(deltas)
-
-
 def plot_histograms(deltas):
     '''
     Plot a histogram of the a_M values calculcated for each data point
@@ -78,20 +62,56 @@ def clean_data(data):
     '''
     Transforms all of the data into floats instead of strings.
     '''
-    return [float(x) for x in data]
+    return [float(x) for x in data.readlines()]
+
+
+def main(args):
+    '''
+    Loads the scores from the congruent and incongruent text files.
+    Cleans the scores data, as necessary.
+    '''
+    congruent = clean_data(args.congruent)
+    print("Mean congruent score: {}".format(np.mean(congruent)))
+    incongruents = []
+    deltas = []
+    awarenesses = []
+    ps = []
+    scores = []
+    for i in args.incongruent:
+        incongruent = clean_data(i)
+        mean_score = np.mean(incongruent)
+        scores.append(mean_score)
+        delta, mean_awareness = calculate_awareness(congruent,
+                                                     incongruent,
+                                                     args.logprob)
+        stat, p = significance_test(congruent, incongruent)
+        print('Mean awareness: {:.5f}, T={}, p={:.3f}'.format(mean_awareness,
+                                                              stat, p))
+        deltas.append(delta)
+        awarenesses.append(mean_awareness)
+        ps.append(p)
+
+    # combine the different p-values using Fisher's method
+    stat, p = scipy.stats.combine_pvalues(ps, method='fisher')
+    print("Fisher's method: Chi-Squared={}, p={:.7f}".format(stat, p))
+    print("Avearge awareness: {} +- {}".format(np.mean(awarenesses), np.std(awarenesses)))
+    print("Average score: {} +- {}".format(np.mean(scores), np.std(scores)))
+    if not args.no_plot:
+        plot_histograms(deltas)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("congruent",
+    parser.add_argument("--congruent",
                         help="Path to file containing the scores for the model\
                               with the congruent visual context",
                         type=argparse.FileType('r'))
-    parser.add_argument("incongruent",
-                        help="Path to file containing the scores for the model\
-                              with the incongruent visual context",
-                        type=argparse.FileType('r'))
+    parser.add_argument("--incongruent",
+                        help="Path to files containing the scores for the model\
+                              with the incongruent visual contexts",
+                        type=argparse.FileType('r'), nargs="+")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--logprob", action="store_true")
     group.add_argument("--meteor", action="store_true")
+    parser.add_argument("--no_plot", action="store_true")
     main(parser.parse_args())
