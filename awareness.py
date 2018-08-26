@@ -5,42 +5,24 @@ import numpy as np
 import argparse
 
 
-def plot_histograms(deltas):
-    '''
-    Plot a histogram of the a_M values calculcated for each data point
-    in the evaluation set.
-
-    The data points that assign a better score in the incongruent visual
-    context is coloured in red.
-    '''
-    mask1 = deltas > 0.
-    mask2 = deltas <= 0.
-    ax1 = sns.distplot(deltas[mask1], kde=False, hist=True, color='gray')
-    ax2 = sns.distplot(deltas[mask2], kde=False, hist=True, color='red')
-    ax1.tick_params(labelsize=15)
-    plt.yscale('log')
-    ax1.xaxis.set_major_locator(plt.MaxNLocator(6))
-    plt.show()
-
-
 def significance_test(congruent, incongruent):
     return scipy.stats.wilcoxon(congruent, incongruent)
 
 
 def calculate_awareness(congruent, incongruent, is_logprob=False):
     '''
-    Calculates Eq. 2
+    Calculates Equation 1.
     '''
     deltas = []
     awarenesses = []
     total_awareness = 0.
     for c, i in zip(congruent, incongruent):
         if is_logprob:
-            delta = i - c
+            delta = i - c # Equation 2 with reversed operands
         else:
-            delta = c - i
+            delta = c - i  # Equation 2.
         deltas.append(delta)
-        a = awareness_function(delta)  # Equation 1.
+        a = awareness_function(delta)
         total_awareness += a
         awarenesses.append(a)
 
@@ -49,13 +31,13 @@ def calculate_awareness(congruent, incongruent, is_logprob=False):
     return deltas, total_awareness
 
 
-def awareness_function(p_value):
+def awareness_function(delta):
     '''
     Implements Eq (1).
-    We simply return the delta_p_value, this models the
+    We simply return the delta_value, this models the
     awareness of a model as a linear relationship: a(x) = x.
     '''
-    return p_value
+    return delta
 
 
 def clean_data(data):
@@ -71,7 +53,6 @@ def main(args):
     Cleans the scores data, as necessary.
     '''
     congruent = clean_data(args.congruent)
-    print("Mean congruent score: {}".format(np.mean(congruent)))
     incongruents = []
     deltas = []
     awarenesses = []
@@ -93,25 +74,24 @@ def main(args):
 
     # combine the different p-values using Fisher's method
     stat, p = scipy.stats.combine_pvalues(ps, method='fisher')
+    print("Mean congruent score: {}".format(np.mean(congruent)))
+    print("Mean incongruent score: {} +- {}".format(np.mean(scores), np.std(scores)))
     print("Fisher's method: Chi-Squared={}, p={:.7f}".format(stat, p))
     print("Avearge awareness: {} +- {}".format(np.mean(awarenesses), np.std(awarenesses)))
-    print("Average score: {} +- {}".format(np.mean(scores), np.std(scores)))
-    if not args.no_plot:
-        plot_histograms(deltas)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--congruent",
                         help="Path to file containing the scores for the model\
                               with the congruent visual context",
-                        type=argparse.FileType('r'))
+                        type=argparse.FileType('r'),
+                        required=True)
     parser.add_argument("--incongruent",
                         help="Path to files containing the scores for the model\
                               with the incongruent visual contexts",
-                        type=argparse.FileType('r'), nargs="+")
+                        type=argparse.FileType('r'), nargs="+",
+                        required=True)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--logprob", action="store_true")
     group.add_argument("--meteor", action="store_true")
-    parser.add_argument("--no_plot", action="store_true")
     main(parser.parse_args())
