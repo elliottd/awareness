@@ -44,3 +44,13 @@ python violin_plots.py --model1 data/trgmul/trgmul.val*.scores
 ```
 
 ![Figure 2 from the paper](violin_plots.png)
+
+## Evaluating your own model
+
+1. Generate the shuffled image data: `python shuffle_images.py --image_order_file val.txt --features val-resnet50-avgpool.npy`, for example. This will produce five new `.npy` files and text files that show the shuffled order of the images.
+
+2. Generates translations for the different shuffles of the image data using your model.
+
+3. Score the translations at the sentence-level.
+
+4. Follow the instructions in Step 2 of [Reproducing Table 1 and Figure 2](#reproducing-table-1-and-figure-2) using the scores files from the previous step.
